@@ -39,3 +39,16 @@ def test_validate_dir_raises_and_does_not_create(tmp_path):
 
 def test_validate_dir_returns_existing(tmp_path):
     assert download._validate_dir(tmp_path) == tmp_path
+
+
+def test_validate_dir_rejects_file(tmp_path):
+    f = tmp_path / "file.txt"
+    f.write_text("x")
+    with pytest.raises(DownloadError):
+        download._validate_dir(f)
+
+
+def test_get_download_dirs_none_when_empty_string(monkeypatch):
+    monkeypatch.setenv("DOWNLOAD_AUDIO_DIR", "")
+    monkeypatch.setenv("DOWNLOAD_VIDEO_DIR", "")
+    assert download.get_download_dirs() is None
