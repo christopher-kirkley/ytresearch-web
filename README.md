@@ -73,8 +73,14 @@ Then open http://127.0.0.1:5001 and log in with the admin credentials from `.env
 
 ## Tests
 
+Python (database tests skip automatically when `TEST_DATABASE_URL` is unset):
+
 ```bash
 TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/ytresearch_test uv run pytest
 ```
 
-Tests requiring a database skip automatically when `TEST_DATABASE_URL` is unset.
+Frontend search/sort helpers (Node's built-in runner, no dependencies):
+
+```bash
+node --test "tests/js/*.test.js"
+```

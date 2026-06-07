@@ -16,24 +16,38 @@
 
 <h2 style="margin-bottom: 1rem;">Tracks</h2>
 {% if tracks %}
+<div class="form-row" style="align-items: center;">
+    <input type="text" id="track-search" placeholder="Search title, artist, country, language, genre…">
+    <span id="track-count" style="color: #666; white-space: nowrap;"></span>
+</div>
+<p id="search-empty" style="display: none; color: #666;">No tracks match your search.</p>
 <table>
     <thead>
         <tr>
-            <th>Title</th>
-            <th>Artist</th>
-            <th>Country</th>
-            <th>Genre</th>
+            <th class="sortable" data-key="title" data-type="text">Title<span class="sort-ind"></span></th>
+            <th class="sortable" data-key="artist" data-type="text">Artist<span class="sort-ind"></span></th>
+            <th class="sortable" data-key="country" data-type="text">Country<span class="sort-ind"></span></th>
+            <th class="sortable" data-key="language" data-type="text">Language<span class="sort-ind"></span></th>
+            <th class="sortable" data-key="genre" data-type="text">Genre<span class="sort-ind"></span></th>
             <th>Summary</th>
-            <th>Status</th>
-            <th>Added</th>
+            <th class="sortable" data-key="status" data-type="text">Status<span class="sort-ind"></span></th>
+            <th class="sortable" data-key="added" data-type="date">Added<span class="sort-ind"></span></th>
         </tr>
     </thead>
     <tbody id="tracks-body">
         {% for t in tracks %}
-        <tr id="row-{{ t.youtube_id }}">
+        <tr id="row-{{ t.youtube_id }}"
+            data-title="{{ (t.title or '')|lower }}"
+            data-artist="{{ (t.artist or '')|lower }}"
+            data-country="{{ (t.country or '')|lower }}"
+            data-language="{{ (t.language_ethnic_group or '')|lower }}"
+            data-genre="{{ (t.genre or '')|lower }}"
+            data-status="{{ t.status or '' }}"
+            data-added="{{ t.created_at.strftime('%Y-%m-%d') if t.created_at else '' }}">
             <td><a class="track-link" href="{{ url_for('track_detail', youtube_id=t.youtube_id) }}">{{ t.title or '(untitled)' }}</a></td>
             <td>{{ t.artist or '' }}</td>
             <td>{{ t.country or '' }}</td>
+            <td>{{ t.language_ethnic_group or '' }}</td>
             <td>{{ t.genre or '' }}</td>
             <td>{{ (t.summary_short or '')[:80] }}{% if t.summary_short and t.summary_short|length > 80 %}...{% endif %}</td>
             <td><span class="status-badge status-{{ t.status }}">{{ t.status }}</span></td>
@@ -48,6 +62,9 @@
 
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { background: #16213e; }
+.sort-ind { display: inline-block; width: 1em; }
 </style>
 
 <script>
@@ -146,6 +163,77 @@ async function pollStatus(videoId) {
     } catch (err) {
         setTimeout(() => pollStatus(videoId), 3000);
     }
+}
+</script>
+<script type="module">
+import { matchesQuery, makeComparator } from "{{ url_for('static', filename='js/track-table.js') }}";
+
+const tbody = document.getElementById('tracks-body');
+const searchInput = document.getElementById('track-search');
+const countEl = document.getElementById('track-count');
+const emptyEl = document.getElementById('search-empty');
+
+// Only run if the table is present (it is hidden when there are no tracks).
+if (tbody && searchInput) {
+    const SEARCH_KEYS = ['title', 'artist', 'country', 'language', 'genre'];
+    let sortState = { key: 'added', dir: 'desc' };
+
+    const allRows = () => Array.from(tbody.querySelectorAll('tr'));
+    const haystack = (row) => SEARCH_KEYS.map((k) => row.dataset[k] || '').join(' ');
+
+    function applyFilter() {
+        const q = searchInput.value;
+        const rows = allRows();
+        let visible = 0;
+        for (const row of rows) {
+            const show = matchesQuery(haystack(row), q);
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        }
+        countEl.textContent = `${visible} of ${rows.length} tracks`;
+        emptyEl.style.display = visible === 0 ? 'block' : 'none';
+    }
+
+    function updateIndicators() {
+        document.querySelectorAll('th.sortable').forEach((th) => {
+            const ind = th.querySelector('.sort-ind');
+            ind.textContent = th.dataset.key === sortState.key
+                ? (sortState.dir === 'asc' ? ' ▲' : ' ▼')
+                : '';
+        });
+    }
+
+    function applySort() {
+        const { key, dir } = sortState;
+        const th = document.querySelector(`th.sortable[data-key="${key}"]`);
+        const type = th ? th.dataset.type : 'text';
+        const cmp = makeComparator(type, dir);
+        const rows = allRows();
+        rows.sort((ra, rb) => cmp(ra.dataset[key] || '', rb.dataset[key] || ''));
+        for (const row of rows) tbody.appendChild(row); // reorder in place
+        updateIndicators();
+    }
+
+    document.querySelectorAll('th.sortable').forEach((th) => {
+        th.addEventListener('click', () => {
+            const key = th.dataset.key;
+            if (sortState.key === key) {
+                sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortState = { key, dir: 'asc' };
+            }
+            applySort();
+        });
+    });
+
+    let debounce;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(debounce);
+        debounce = setTimeout(applyFilter, 150);
+    });
+
+    applySort();   // establish default newest-first order + indicator
+    applyFilter(); // populate the "N of M tracks" count
 }
 </script>
 {% endblock %}
