@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ytresearch{% endblock %}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; }
+        nav { background: #1a1a2e; color: #fff; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        nav a { color: #e0e0e0; text-decoration: none; }
+        nav a:hover { color: #fff; }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        .flash { padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 4px; }
+        .flash.error { background: #fde8e8; color: #9b1c1c; }
+        .flash.success { background: #def7ec; color: #03543f; }
+        .flash.info { background: #e1effe; color: #1e429f; }
+        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th { background: #1a1a2e; color: #fff; text-align: left; padding: 0.75rem 1rem; font-weight: 500; }
+        td { padding: 0.75rem 1rem; border-bottom: 1px solid #eee; }
+        tr:hover td { background: #f9f9f9; }
+        a.track-link { color: #1a1a2e; text-decoration: none; }
+        a.track-link:hover { text-decoration: underline; }
+        input[type="text"], input[type="password"] { padding: 0.5rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+        button, input[type="submit"] { padding: 0.5rem 1.25rem; background: #1a1a2e; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+        button:hover, input[type="submit"]:hover { background: #16213e; }
+        .form-row { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+        .form-row input[type="text"] { flex: 1; }
+        .status-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.85rem; }
+        .status-success { background: #def7ec; color: #03543f; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-processing { background: #e1effe; color: #1e429f; }
+        .status-failed { background: #fde8e8; color: #9b1c1c; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="{{ url_for('dashboard') }}"><strong>ytresearch</strong></a>
+        {% if current_user.is_authenticated %}
+            <span>{{ current_user.username }} &middot; <a href="{{ url_for('auth.logout') }}">Logout</a></span>
+        {% endif %}
+    </nav>
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

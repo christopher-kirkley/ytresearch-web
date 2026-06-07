@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ track.title or 'Track' }} - ytresearch{% endblock %}
+{% block content %}
+<p style="margin-bottom: 1rem;"><a href="{{ url_for('dashboard') }}">&larr; Back to dashboard</a></p>
+
+<div style="background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <h2 style="margin-bottom: 0.5rem;">{{ track.title or '(untitled)' }}</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">
+        <a href="{{ track.youtube_url }}" target="_blank" style="color: #1a1a2e;">{{ track.youtube_url }}</a>
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div><strong>Artist:</strong> {{ track.artist or 'N/A' }}</div>
+        <div><strong>Song:</strong> {{ track.song or 'N/A' }}</div>
+        <div><strong>Year:</strong> {{ track.year or 'N/A' }}</div>
+        <div><strong>Country:</strong> {{ track.country or 'N/A' }}</div>
+        <div><strong>Language / Ethnic Group:</strong> {{ track.language_ethnic_group or 'N/A' }}</div>
+        <div><strong>Genre:</strong> {{ track.genre or 'N/A' }}</div>
+        <div><strong>Uploader:</strong> {{ track.uploader or 'N/A' }}</div>
+        <div><strong>Upload Date:</strong> {{ track.upload_date or 'N/A' }}</div>
+        <div><strong>Duration:</strong> {% if track.duration_seconds %}{{ (track.duration_seconds // 60) }}:{{ '%02d' % (track.duration_seconds % 60) }}{% else %}N/A{% endif %}</div>
+        <div><strong>Views:</strong> {{ '{:,}'.format(track.view_count) if track.view_count else 'N/A' }}</div>
+        <div><strong>Likes:</strong> {{ '{:,}'.format(track.like_count) if track.like_count else 'N/A' }}</div>
+        <div><strong>Comments:</strong> {{ '{:,}'.format(track.comment_count) if track.comment_count else 'N/A' }}</div>
+    </div>
+
+    {% if track.summary_short %}
+    <h3 style="margin-bottom: 0.5rem;">Short Summary</h3>
+    <p style="margin-bottom: 1.5rem; color: #555;">{{ track.summary_short }}</p>
+    {% endif %}
+
+    {% if track.summary %}
+    <h3 style="margin-bottom: 0.5rem;">Full Summary</h3>
+    <p style="white-space: pre-wrap; color: #555;">{{ track.summary }}</p>
+    {% endif %}
+
+    <p style="margin-top: 1.5rem; color: #999; font-size: 0.85rem;">
+        Status: <span class="status-badge status-{{ track.status }}">{{ track.status }}</span>
+        {% if track.error %} &mdash; {{ track.error }}{% endif %}
+    </p>
+</div>
+{% endblock %}

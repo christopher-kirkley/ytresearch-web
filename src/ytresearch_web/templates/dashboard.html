@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - ytresearch{% endblock %}
+{% block content %}
+<h2 style="margin-bottom: 1rem;">Process a YouTube URL</h2>
+<form id="process-form">
+    <input type="hidden" id="csrf-token" value="{{ csrf_token() }}">
+    <div class="form-row">
+        <input type="text" name="url" id="url-input" placeholder="https://www.youtube.com/watch?v=..." required>
+        <button type="submit" id="submit-btn">Process</button>
+    </div>
+</form>
+<div id="processing-status" style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: #e1effe; border-radius: 4px; color: #1e429f;">
+    <span class="spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid #1e429f; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 0.5rem;"></span>
+    <span id="status-text">Submitting...</span>
+</div>
+
+<h2 style="margin-bottom: 1rem;">Tracks</h2>
+{% if tracks %}
+<table>
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Artist</th>
+            <th>Country</th>
+            <th>Genre</th>
+            <th>Summary</th>
+            <th>Status</th>
+            <th>Added</th>
+        </tr>
+    </thead>
+    <tbody id="tracks-body">
+        {% for t in tracks %}
+        <tr id="row-{{ t.youtube_id }}">
+            <td><a class="track-link" href="{{ url_for('track_detail', youtube_id=t.youtube_id) }}">{{ t.title or '(untitled)' }}</a></td>
+            <td>{{ t.artist or '' }}</td>
+            <td>{{ t.country or '' }}</td>
+            <td>{{ t.genre or '' }}</td>
+            <td>{{ (t.summary_short or '')[:80] }}{% if t.summary_short and t.summary_short|length > 80 %}...{% endif %}</td>
+            <td><span class="status-badge status-{{ t.status }}">{{ t.status }}</span></td>
+            <td>{{ t.created_at.strftime('%Y-%m-%d') if t.created_at else '' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p id="no-tracks" style="color: #666;">No tracks yet. Paste a YouTube URL above to get started.</p>
+{% endif %}
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<script>
+const form = document.getElementById('process-form');
+const urlInput = document.getElementById('url-input');
+const submitBtn = document.getElementById('submit-btn');
+const statusDiv = document.getElementById('processing-status');
+const statusText = document.getElementById('status-text');
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const url = urlInput.value.trim();
+    if (!url) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processing...';
+    statusDiv.style.display = 'block';
+    statusText.textContent = 'Submitting...';
+
+    try {
+        const csrfToken = document.getElementById('csrf-token').value;
+        const formData = new FormData();
+        formData.append('url', url);
+        formData.append('csrf_token', csrfToken);
+
+        const resp = await fetch('/process', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': csrfToken },
+        });
+        const data = await resp.json();
+
+        if (!resp.ok) {
+            statusDiv.style.background = '#fde8e8';
+            statusDiv.style.color = '#9b1c1c';
+            statusText.textContent = data.error || 'Something went wrong.';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Process';
+            setTimeout(() => { statusDiv.style.display = 'none'; }, 4000);
+            return;
+        }
+
+        statusText.textContent = 'Scraping video metadata...';
+        urlInput.value = '';
+
+        // Poll for completion
+        const videoId = data.youtube_id;
+        pollStatus(videoId);
+
+    } catch (err) {
+        statusDiv.style.background = '#fde8e8';
+        statusDiv.style.color = '#9b1c1c';
+        statusText.textContent = 'Network error. Please try again.';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Process';
+    }
+});
+
+const STATUS_MESSAGES = {
+    pending: 'Queued for processing...',
+    processing: 'Scraping metadata & analyzing with Claude...',
+    success: 'Done!',
+    failed: 'Processing failed.',
+};
+
+async function pollStatus(videoId) {
+    try {
+        const resp = await fetch('/status/' + videoId);
+        const data = await resp.json();
+        const status = data.status;
+
+        statusText.textContent = STATUS_MESSAGES[status] || status;
+
+        if (status === 'success') {
+            statusDiv.style.background = '#def7ec';
+            statusDiv.style.color = '#03543f';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Process';
+            // Reload to show the new track in the table
+            setTimeout(() => { window.location.reload(); }, 800);
+            return;
+        }
+
+        if (status === 'failed') {
+            statusDiv.style.background = '#fde8e8';
+            statusDiv.style.color = '#9b1c1c';
+            statusText.textContent = 'Failed: ' + (data.error || 'Unknown error');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Process';
+            return;
+        }
+
+        // Keep polling
+        setTimeout(() => pollStatus(videoId), 2000);
+
+    } catch (err) {
+        setTimeout(() => pollStatus(videoId), 3000);
+    }
+}
+</script>
+{% endblock %}
