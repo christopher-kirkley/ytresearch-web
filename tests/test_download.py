@@ -116,3 +116,17 @@ def test_download_functions_use_double_dash_before_url(mock_run, tmp_path):
         assert "--" in argv, f"{fn.__name__} argv missing -- separator"
         assert argv.index("--") == len(argv) - 2, f"{fn.__name__}: -- must be immediately before the url"
         assert argv[-1] == "https://example.com/watch?v=x"
+
+
+@patch("ytresearch_web.download.subprocess.run")
+def test_download_audio_raises_when_no_output_path(mock_run, tmp_path):
+    mock_run.return_value = _ok("")
+    with pytest.raises(DownloadError):
+        download.download_audio("https://example.com/v", tmp_path)
+
+
+@patch("ytresearch_web.download.subprocess.run")
+def test_download_video_raises_when_no_output_path(mock_run, tmp_path):
+    mock_run.return_value = _ok("")
+    with pytest.raises(DownloadError):
+        download.download_video("https://example.com/v", tmp_path)

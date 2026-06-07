@@ -74,7 +74,10 @@ def download_audio(url: str, audio_dir: Path) -> Path:
     ])
     if result.returncode != 0:
         raise DownloadError(f"Audio download failed: {result.stderr.strip()}")
-    return Path(result.stdout.strip().splitlines()[-1])
+    lines = result.stdout.strip().splitlines()
+    if not lines:
+        raise DownloadError(f"Audio download produced no output path: {url}")
+    return Path(lines[-1])
 
 
 def download_video(url: str, video_dir: Path) -> Path:
@@ -93,7 +96,10 @@ def download_video(url: str, video_dir: Path) -> Path:
     ])
     if result.returncode != 0:
         raise DownloadError(f"Video download failed: {result.stderr.strip()}")
-    return Path(result.stdout.strip().splitlines()[-1])
+    lines = result.stdout.strip().splitlines()
+    if not lines:
+        raise DownloadError(f"Video download produced no output path: {url}")
+    return Path(lines[-1])
 
 
 def download_thumbnail(url: str, audio_dir: Path) -> Path | None:
