@@ -8,6 +8,17 @@
         <input type="text" name="url" id="url-input" placeholder="https://www.youtube.com/watch?v=..." required>
         <button type="submit" id="submit-btn">Process</button>
     </div>
+    {% if downloads_enabled %}
+    <div class="form-row" style="align-items: center; gap: 0.75rem;">
+        <label style="display: flex; align-items: center; gap: 0.35rem;">
+            <input type="checkbox" id="download-checkbox" name="download" value="1"> ⬇ Download to disk
+        </label>
+        <select id="include-video-select" name="include_video">
+            <option value="both">Audio + video</option>
+            <option value="audio">Audio only</option>
+        </select>
+    </div>
+    {% endif %}
 </form>
 <div id="processing-status" style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: #e1effe; border-radius: 4px; color: #1e429f;">
     <span class="spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid #1e429f; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 0.5rem;"></span>
@@ -89,6 +100,13 @@ form.addEventListener('submit', async (e) => {
         const formData = new FormData();
         formData.append('url', url);
         formData.append('csrf_token', csrfToken);
+
+        const downloadCheckbox = document.getElementById('download-checkbox');
+        if (downloadCheckbox && downloadCheckbox.checked) {
+            formData.append('download', '1');
+            const videoSelect = document.getElementById('include-video-select');
+            formData.append('include_video', videoSelect ? videoSelect.value : 'both');
+        }
 
         const resp = await fetch('/process', {
             method: 'POST',
