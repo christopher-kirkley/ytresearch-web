@@ -52,3 +52,54 @@ def test_get_download_dirs_none_when_empty_string(monkeypatch):
     monkeypatch.setenv("DOWNLOAD_AUDIO_DIR", "")
     monkeypatch.setenv("DOWNLOAD_VIDEO_DIR", "")
     assert download.get_download_dirs() is None
+
+
+from unittest.mock import MagicMock, patch
+
+
+def _ok(stdout):
+    m = MagicMock()
+    m.returncode = 0
+    m.stdout = stdout
+    m.stderr = ""
+    return m
+
+
+def _fail(stderr="boom"):
+    m = MagicMock()
+    m.returncode = 1
+    m.stdout = ""
+    m.stderr = stderr
+    return m
+
+
+@patch("ytresearch_web.download.subprocess.run")
+def test_download_audio_uses_no_overwrites_and_returns_path(mock_run, tmp_path):
+    mock_run.return_value = _ok(str(tmp_path / "Song.mp3"))
+    path = download.download_audio("URL", tmp_path)
+    assert path == Path(tmp_path / "Song.mp3")
+    argv = mock_run.call_args[0][0]
+    assert argv[0] == "yt-dlp"
+    assert "--no-overwrites" in argv
+
+
+@patch("ytresearch_web.download.subprocess.run")
+def test_download_audio_raises_on_failure(mock_run, tmp_path):
+    mock_run.return_value = _fail("nope")
+    with pytest.raises(DownloadError):
+        download.download_audio("URL", tmp_path)
+
+
+@patch("ytresearch_web.download.subprocess.run")
+def test_download_audio_validates_dir_before_running(mock_run, tmp_path):
+    with pytest.raises(DownloadError):
+        download.download_audio("URL", tmp_path / "missing")
+    mock_run.assert_not_called()
+
+
+@patch("ytresearch_web.download.subprocess.run")
+def test_download_video_uses_no_overwrites_and_returns_path(mock_run, tmp_path):
+    mock_run.return_value = _ok(str(tmp_path / "Song.mp4"))
+    path = download.download_video("URL", tmp_path)
+    assert path == Path(tmp_path / "Song.mp4")
+    assert "--no-overwrites" in mock_run.call_args[0][0]

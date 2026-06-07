@@ -50,3 +50,67 @@ def _validate_dir(path: Path) -> Path:
             f"Download directory is not an existing writable directory: {path}"
         )
     return path
+
+
+def _run_yt_dlp(args: list[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(args, capture_output=True, text=True)
+
+
+def download_audio(url: str, audio_dir: Path) -> Path:
+    """Download best audio as MP3 into audio_dir. Never overwrites."""
+    _validate_dir(audio_dir)
+    output_template = str(audio_dir / "%(title)s.%(ext)s")
+    result = _run_yt_dlp([
+        "yt-dlp",
+        "-f", "bestaudio/best",
+        "--extract-audio",
+        "--audio-format", "mp3",
+        "--audio-quality", "0",
+        "--no-overwrites",
+        "-o", output_template,
+        "--print", "after_move:filepath",
+        url,
+    ])
+    if result.returncode != 0:
+        raise DownloadError(f"Audio download failed: {result.stderr.strip()}")
+    return Path(result.stdout.strip().splitlines()[-1])
+
+
+def download_video(url: str, video_dir: Path) -> Path:
+    """Download best video+audio merged as MP4 into video_dir. Never overwrites."""
+    _validate_dir(video_dir)
+    output_template = str(video_dir / "%(title)s.%(ext)s")
+    result = _run_yt_dlp([
+        "yt-dlp",
+        "-f", "bestvideo+bestaudio",
+        "--merge-output-format", "mp4",
+        "--no-overwrites",
+        "-o", output_template,
+        "--print", "after_move:filepath",
+        url,
+    ])
+    if result.returncode != 0:
+        raise DownloadError(f"Video download failed: {result.stderr.strip()}")
+    return Path(result.stdout.strip().splitlines()[-1])
+
+
+def download_thumbnail(url: str, audio_dir: Path) -> Path | None:
+    """Download the thumbnail as jpg into audio_dir. Best-effort; never overwrites."""
+    _validate_dir(audio_dir)
+    output_template = str(audio_dir / "%(title)s.%(ext)s")
+    result = _run_yt_dlp([
+        "yt-dlp",
+        "--write-thumbnail",
+        "--skip-download",
+        "--convert-thumbnails", "jpg",
+        "--no-overwrites",
+        "-o", output_template,
+        url,
+    ])
+    if result.returncode != 0:
+        logger.warning("Thumbnail download failed for %s", url)
+        return None
+    for f in audio_dir.iterdir():
+        if f.suffix == ".jpg":
+            return f
+    return None
