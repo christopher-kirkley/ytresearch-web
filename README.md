@@ -82,5 +82,5 @@ TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/ytresearch_test uv run p
 Frontend search/sort helpers (Node's built-in runner, no dependencies):
 
 ```bash
-node --test tests/js/
+node --test "tests/js/*.test.js"
 ```
