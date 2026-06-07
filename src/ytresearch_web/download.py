@@ -123,3 +123,39 @@ def download_thumbnail(url: str, audio_dir: Path) -> Path | None:
         if f.suffix == ".jpg":
             return f
     return None
+
+
+def archive_track(
+    url: str,
+    metadata: VideoMetadata,
+    analysis: TrackAnalysis | None,
+    audio_dir: Path,
+    video_dir: Path,
+    include_video: bool = True,
+) -> dict:
+    """Download + tag audio (and optionally video).
+
+    Returns {"audio_path": str, "video_path": str | None}. An audio failure
+    raises DownloadError; a video failure is logged and tolerated.
+    """
+    audio_path = download_audio(url, audio_dir)
+
+    thumb = download_thumbnail(url, audio_dir)
+    if thumb is not None:
+        tagger.embed_thumbnail(audio_path, thumb)
+        thumb.unlink(missing_ok=True)
+
+    if analysis is not None:
+        tagger.write_tags(audio_path, analysis, metadata.get("view_count", 0) or 0)
+
+    video_path: Path | None = None
+    if include_video:
+        try:
+            video_path = download_video(url, video_dir)
+        except DownloadError as e:
+            logger.warning("Video download failed (continuing): %s", e)
+
+    return {
+        "audio_path": str(audio_path),
+        "video_path": str(video_path) if video_path else None,
+    }

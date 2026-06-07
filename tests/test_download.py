@@ -130,3 +130,46 @@ def test_download_video_raises_when_no_output_path(mock_run, tmp_path):
     mock_run.return_value = _ok("")
     with pytest.raises(DownloadError):
         download.download_video("https://example.com/v", tmp_path)
+
+
+_META = {"view_count": 1234}
+_ANALYSIS = {
+    "artist": "A", "song": "S", "year": 2024, "country": "C",
+    "language_ethnic_group": "L", "genre": "G", "summary": "x", "summary_short": "y",
+}
+
+
+@patch("ytresearch_web.download.download_video")
+@patch("ytresearch_web.download.tagger")
+@patch("ytresearch_web.download.download_thumbnail", return_value=None)
+@patch("ytresearch_web.download.download_audio")
+def test_archive_track_audio_only_skips_video(mock_audio, mock_thumb, mock_tagger, mock_video, tmp_path):
+    mock_audio.return_value = tmp_path / "Song.mp3"
+    out = download.archive_track("URL", _META, _ANALYSIS, tmp_path, tmp_path, include_video=False)
+    assert out["audio_path"] == str(tmp_path / "Song.mp3")
+    assert out["video_path"] is None
+    mock_video.assert_not_called()
+    mock_tagger.write_tags.assert_called_once()
+
+
+@patch("ytresearch_web.download.download_video")
+@patch("ytresearch_web.download.tagger")
+@patch("ytresearch_web.download.download_thumbnail", return_value=None)
+@patch("ytresearch_web.download.download_audio")
+def test_archive_track_with_video(mock_audio, mock_thumb, mock_tagger, mock_video, tmp_path):
+    mock_audio.return_value = tmp_path / "Song.mp3"
+    mock_video.return_value = tmp_path / "Song.mp4"
+    out = download.archive_track("URL", _META, _ANALYSIS, tmp_path, tmp_path, include_video=True)
+    assert out["video_path"] == str(tmp_path / "Song.mp4")
+    mock_video.assert_called_once()
+
+
+@patch("ytresearch_web.download.download_video", side_effect=DownloadError("fail"))
+@patch("ytresearch_web.download.tagger")
+@patch("ytresearch_web.download.download_thumbnail", return_value=None)
+@patch("ytresearch_web.download.download_audio")
+def test_archive_track_tolerates_video_failure(mock_audio, mock_thumb, mock_tagger, mock_video, tmp_path):
+    mock_audio.return_value = tmp_path / "Song.mp3"
+    out = download.archive_track("URL", _META, _ANALYSIS, tmp_path, tmp_path, include_video=True)
+    assert out["video_path"] is None
+    assert out["audio_path"] == str(tmp_path / "Song.mp3")
