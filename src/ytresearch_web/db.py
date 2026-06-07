@@ -76,9 +76,14 @@ def init_db(pool: psycopg2.pool.ThreadedConnectionPool):
                     channel_url TEXT,
                     status TEXT DEFAULT 'pending',
                     error TEXT,
+                    audio_path TEXT,
+                    video_path TEXT,
                     created_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(user_id, youtube_id)
                 );
+
+                ALTER TABLE tracks ADD COLUMN IF NOT EXISTS audio_path TEXT;
+                ALTER TABLE tracks ADD COLUMN IF NOT EXISTS video_path TEXT;
             """)
         conn.commit()
     finally:
@@ -163,13 +168,15 @@ def insert_track(pool, result: ProcessingResult, comments: list[dict], user_id: 
                     country, language_ethnic_group, genre, view_count,
                     summary, summary_short, uploader, uploader_id, upload_date,
                     duration_seconds, like_count, comment_count, description,
-                    comments_json, tags, categories, channel_url, status
+                    comments_json, tags, categories, channel_url, status,
+                    audio_path, video_path
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s,
                     %s, %s, %s, %s, %s,
                     %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s,
+                    %s, %s
                 )
                 """,
                 (
@@ -198,6 +205,8 @@ def insert_track(pool, result: ProcessingResult, comments: list[dict], user_id: 
                     json.dumps(video.get("categories", [])),
                     video.get("channel_url"),
                     result.get("status", "success"),
+                    result.get("audio_path"),
+                    result.get("video_path"),
                 ),
             )
         conn.commit()
@@ -316,7 +325,7 @@ def get_track(pool, user_id: int, youtube_id: str) -> dict | None:
                        country, language_ethnic_group, genre, view_count,
                        summary, summary_short, uploader, uploader_id, upload_date,
                        duration_seconds, like_count, comment_count, description,
-                       tags, categories, channel_url, status, error, created_at
+                       tags, categories, channel_url, audio_path, video_path, status, error, created_at
                 FROM tracks
                 WHERE user_id = %s AND youtube_id = %s
                 """,

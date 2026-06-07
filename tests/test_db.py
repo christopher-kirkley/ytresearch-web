@@ -82,3 +82,24 @@ def test_seed_admin(pool):
     assert user is not None
     # Calling again should not error
     db.seed_admin(pool, "admin", "adminpass")
+
+
+def test_track_paths_round_trip(pool):
+    user_id = db.create_user(pool, "pathuser", generate_password_hash("p"))
+    result = {
+        "video": {
+            "youtube_id": "pth1", "youtube_url": "u", "title": "T", "description": "",
+            "uploader": "", "uploader_id": "", "upload_date": "", "duration_seconds": 0,
+            "view_count": 0, "like_count": 0, "comment_count": 0,
+            "tags": [], "categories": [], "channel_url": "", "thumbnail_path": None,
+        },
+        "analysis": None,
+        "audio_path": "/music/audio/Song.mp3",
+        "video_path": "/music/video/Song.mp4",
+        "status": "success",
+        "error": None,
+    }
+    db.insert_track(pool, result, [], user_id)
+    track = db.get_track(pool, user_id, "pth1")
+    assert track["audio_path"] == "/music/audio/Song.mp3"
+    assert track["video_path"] == "/music/video/Song.mp4"
