@@ -136,14 +136,19 @@ def archive_track(
     """Download + tag audio (and optionally video).
 
     Returns {"audio_path": str, "video_path": str | None}. An audio failure
-    raises DownloadError; a video failure is logged and tolerated.
+    raises DownloadError; thumbnail embed and video failures are logged and
+    tolerated.
     """
     audio_path = download_audio(url, audio_dir)
 
     thumb = download_thumbnail(url, audio_dir)
     if thumb is not None:
-        tagger.embed_thumbnail(audio_path, thumb)
-        thumb.unlink(missing_ok=True)
+        try:
+            tagger.embed_thumbnail(audio_path, thumb)
+        except Exception as e:
+            logger.warning("Thumbnail embed failed (continuing): %s", e)
+        finally:
+            thumb.unlink(missing_ok=True)
 
     if analysis is not None:
         tagger.write_tags(audio_path, analysis, metadata.get("view_count", 0) or 0)

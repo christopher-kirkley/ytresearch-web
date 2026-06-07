@@ -173,3 +173,42 @@ def test_archive_track_tolerates_video_failure(mock_audio, mock_thumb, mock_tagg
     out = download.archive_track("URL", _META, _ANALYSIS, tmp_path, tmp_path, include_video=True)
     assert out["video_path"] is None
     assert out["audio_path"] == str(tmp_path / "Song.mp3")
+
+
+@patch("ytresearch_web.download.download_video")
+@patch("ytresearch_web.download.tagger")
+@patch("ytresearch_web.download.download_thumbnail")
+@patch("ytresearch_web.download.download_audio")
+def test_archive_track_embeds_thumbnail_and_cleans_up(mock_audio, mock_thumb, mock_tagger, mock_video, tmp_path):
+    mock_audio.return_value = tmp_path / "Song.mp3"
+    thumb = tmp_path / "Song.jpg"
+    thumb.write_text("img")
+    mock_thumb.return_value = thumb
+    download.archive_track("URL", _META, _ANALYSIS, tmp_path, tmp_path, include_video=False)
+    mock_tagger.embed_thumbnail.assert_called_once()
+    assert not thumb.exists()  # cleaned up
+
+
+@patch("ytresearch_web.download.download_video")
+@patch("ytresearch_web.download.tagger")
+@patch("ytresearch_web.download.download_thumbnail")
+@patch("ytresearch_web.download.download_audio")
+def test_archive_track_tolerates_embed_failure_and_cleans_up(mock_audio, mock_thumb, mock_tagger, mock_video, tmp_path):
+    mock_audio.return_value = tmp_path / "Song.mp3"
+    thumb = tmp_path / "Song.jpg"
+    thumb.write_text("img")
+    mock_thumb.return_value = thumb
+    mock_tagger.embed_thumbnail.side_effect = Exception("embed boom")
+    out = download.archive_track("URL", _META, _ANALYSIS, tmp_path, tmp_path, include_video=False)
+    assert out["audio_path"] == str(tmp_path / "Song.mp3")  # did not abort
+    assert not thumb.exists()  # cleaned up despite embed failure
+
+
+@patch("ytresearch_web.download.download_video")
+@patch("ytresearch_web.download.tagger")
+@patch("ytresearch_web.download.download_thumbnail", return_value=None)
+@patch("ytresearch_web.download.download_audio")
+def test_archive_track_skips_tags_when_no_analysis(mock_audio, mock_thumb, mock_tagger, mock_video, tmp_path):
+    mock_audio.return_value = tmp_path / "Song.mp3"
+    download.archive_track("URL", _META, None, tmp_path, tmp_path, include_video=False)
+    mock_tagger.write_tags.assert_not_called()
