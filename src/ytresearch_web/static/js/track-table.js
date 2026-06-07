@@ -4,11 +4,12 @@
 /**
  * Return true if every whitespace-separated word in `query` appears as a
  * case-insensitive substring of `haystack`. A blank query matches everything.
- * `haystack` is expected to be already lowercased by the caller.
+ * The haystack is normalized (coerced to string and lowercased) internally.
  */
 export function matchesQuery(haystack, query) {
+  const hay = String(haystack ?? '').toLowerCase();
   const words = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  return words.every((w) => haystack.includes(w));
+  return words.every((w) => hay.includes(w));
 }
 
 /**

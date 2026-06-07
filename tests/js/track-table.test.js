@@ -17,6 +17,15 @@ test('multi-word query is AND across the whole haystack', () => {
   assert.equal(matchesQuery('zambia bemba pop', 'zambia reggae'), false);
 });
 
+test('matchesQuery is robust to null/undefined haystack', () => {
+  assert.equal(matchesQuery(null, 'x'), false);
+  assert.equal(matchesQuery(undefined, ''), true);
+});
+
+test('matchesQuery lowercases the haystack itself', () => {
+  assert.equal(matchesQuery('Zambian POP Bemba', 'bemba'), true);
+});
+
 test('text comparator sorts ascending and descending', () => {
   const asc = ['banana', 'apple', 'cherry'].sort(makeComparator('text', 'asc'));
   assert.deepEqual(asc, ['apple', 'banana', 'cherry']);
