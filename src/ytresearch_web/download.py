@@ -69,6 +69,7 @@ def download_audio(url: str, audio_dir: Path) -> Path:
         "--no-overwrites",
         "-o", output_template,
         "--print", "after_move:filepath",
+        "--",
         url,
     ])
     if result.returncode != 0:
@@ -87,6 +88,7 @@ def download_video(url: str, video_dir: Path) -> Path:
         "--no-overwrites",
         "-o", output_template,
         "--print", "after_move:filepath",
+        "--",
         url,
     ])
     if result.returncode != 0:
@@ -105,6 +107,7 @@ def download_thumbnail(url: str, audio_dir: Path) -> Path | None:
         "--convert-thumbnails", "jpg",
         "--no-overwrites",
         "-o", output_template,
+        "--",
         url,
     ])
     if result.returncode != 0:

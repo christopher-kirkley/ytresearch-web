@@ -103,3 +103,16 @@ def test_download_video_uses_no_overwrites_and_returns_path(mock_run, tmp_path):
     path = download.download_video("URL", tmp_path)
     assert path == Path(tmp_path / "Song.mp4")
     assert "--no-overwrites" in mock_run.call_args[0][0]
+
+
+@patch("ytresearch_web.download.subprocess.run")
+def test_download_functions_use_double_dash_before_url(mock_run, tmp_path):
+    mock_run.return_value = _ok(str(tmp_path / "Song.mp3"))
+    for fn in (download.download_audio, download.download_video):
+        mock_run.reset_mock()
+        mock_run.return_value = _ok(str(tmp_path / "Song.x"))
+        fn("https://example.com/watch?v=x", tmp_path)
+        argv = mock_run.call_args[0][0]
+        assert "--" in argv, f"{fn.__name__} argv missing -- separator"
+        assert argv.index("--") == len(argv) - 2, f"{fn.__name__}: -- must be immediately before the url"
+        assert argv[-1] == "https://example.com/watch?v=x"
