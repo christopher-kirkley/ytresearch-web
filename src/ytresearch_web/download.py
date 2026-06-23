@@ -143,6 +143,24 @@ def download_thumbnail(url: str, audio_path: Path) -> Path | None:
     return thumb if thumb.is_file() else None
 
 
+def _embed_youtube_id(path: Path, youtube_id: str | None) -> None:
+    """Best-effort embed of the youtube_id into a media file.
+
+    No-op if youtube_id is empty, if the installed ytresearch tagger predates
+    embed_youtube_id, or on any tagging error — id embedding is enrichment and
+    must never fail the download.
+    """
+    if not youtube_id:
+        return
+    embed = getattr(tagger, "embed_youtube_id", None)
+    if embed is None:
+        return
+    try:
+        embed(path, youtube_id)
+    except Exception as e:
+        logger.warning("Failed to embed youtube_id into %s (continuing): %s", path, e)
+
+
 def archive_track(
     url: str,
     metadata: VideoMetadata,
@@ -171,10 +189,14 @@ def archive_track(
     if analysis is not None:
         tagger.write_tags(audio_path, analysis, metadata.get("view_count", 0) or 0)
 
+    youtube_id = metadata.get("youtube_id")
+    _embed_youtube_id(audio_path, youtube_id)
+
     video_path: Path | None = None
     if include_video:
         try:
             video_path = download_video(url, video_dir)
+            _embed_youtube_id(video_path, youtube_id)
         except DownloadError as e:
             logger.warning("Video download failed (continuing): %s", e)
 

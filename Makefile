@@ -26,7 +26,7 @@ PLIST := $(LAUNCH_AGENTS)/$(LABEL).plist
 LOG := $(HOME)/Library/Logs/ytresearch-web.log
 UID := $(shell id -u)
 
-.PHONY: run serve test sync install-service uninstall-service service-status service-logs
+.PHONY: run serve test sync backfill-ids install-service uninstall-service service-status service-logs
 
 sync:
 	uv sync
@@ -41,6 +41,10 @@ serve:
 
 test:
 	uv run $(OVERRIDE) pytest
+
+# Embed each track's youtube_id into its archived media files (idempotent).
+backfill-ids:
+	uv run $(OVERRIDE) python -m ytresearch_web.backfill
 
 # Install + start the boot service (renders the plist with this checkout's paths).
 install-service:

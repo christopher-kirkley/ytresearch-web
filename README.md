@@ -153,6 +153,20 @@ through `/login` and on to the page if not).
 > Going through the id (`/track/<id>`) opens the real detail **page**; hitting
 > `/search` directly returns JSON instead.
 
+### Self-identifying files (embedded id)
+
+The lookup above resolves the file via the DB by path, so it breaks if a file
+is moved/renamed out of the archive. To make files carry their own id, embed
+`youtube_id` into their tags (MP3 + MP4) with `make backfill-ids` (idempotent;
+new downloads embed it automatically). Then a script can read the id straight
+from the file instead of the DB:
+
+```bash
+id=$(/opt/homebrew/bin/ffprobe -v quiet \
+     -show_entries format_tags=youtube_id -of default=nw=1:nk=1 "$FILE")
+open "http://localhost:5001/track/$id"
+```
+
 ## Tests
 
 No external database needed — tests run against a throwaway SQLite db:
