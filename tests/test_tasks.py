@@ -1,5 +1,6 @@
 """Tests for process_url with mocked scraper and analyzer."""
 
+from pathlib import Path
 from unittest.mock import patch
 from werkzeug.security import generate_password_hash
 from ytresearch_web import db
@@ -56,3 +57,24 @@ def test_process_url(mock_extract, mock_meta, mock_comments, mock_analyze, pool)
     # Processing again should return None (duplicate)
     result2 = process_url("https://youtube.com/watch?v=mock123", user_id, pool)
     assert result2 is None
+
+
+@patch("ytresearch_web.download.archive_track",
+       return_value={"audio_path": "/a/Song.mp3", "video_path": "/v/Song.mp4"})
+@patch("ytresearch_web.download.get_download_dirs", return_value=(Path("/a"), Path("/v")))
+@patch("ytresearch_web.tasks.analyze", return_value=MOCK_ANALYSIS)
+@patch("ytresearch_web.tasks.fetch_comments", return_value=MOCK_COMMENTS)
+@patch("ytresearch_web.tasks.fetch_metadata", return_value=MOCK_METADATA)
+@patch("ytresearch_web.tasks.extract_video_id", return_value="mock123")
+def test_process_url_with_download(mock_extract, mock_meta, mock_comments, mock_analyze, mock_dirs, mock_archive, pool):
+    user_id = db.create_user(pool, "dluser", generate_password_hash("p"))
+    result = process_url(
+        "https://youtube.com/watch?v=mock123", user_id, pool,
+        download=True, include_video=True,
+    )
+    assert result is not None
+    assert result["audio_path"] == "/a/Song.mp3"
+    assert result["video_path"] == "/v/Song.mp4"
+    mock_archive.assert_called_once()
+    track = db.get_track(pool, user_id, "mock123")
+    assert track["audio_path"] == "/a/Song.mp3"

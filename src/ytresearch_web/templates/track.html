@@ -24,6 +24,14 @@
         <div><strong>Comments:</strong> {{ '{:,}'.format(track.comment_count) if track.comment_count else 'N/A' }}</div>
     </div>
 
+    {% if track.audio_path or track.video_path %}
+    <h3 style="margin-bottom: 0.5rem;">Files</h3>
+    <div style="margin-bottom: 1.5rem; color: #555;">
+        {% if track.audio_path %}<div><strong>Audio:</strong> <code>{{ track.audio_path }}</code></div>{% endif %}
+        {% if track.video_path %}<div><strong>Video:</strong> <code>{{ track.video_path }}</code></div>{% endif %}
+    </div>
+    {% endif %}
+
     {% if track.summary_short %}
     <h3 style="margin-bottom: 0.5rem;">Short Summary</h3>
     <p style="margin-bottom: 1.5rem; color: #555;">{{ track.summary_short }}</p>

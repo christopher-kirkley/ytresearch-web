@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from flask import Flask, redirect, render_template, request, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from . import db
+from . import download
 from .auth import auth_bp, login_manager
 from .extensions import csrf, limiter
 from .tasks import process_url
@@ -74,7 +75,11 @@ def create_app() -> Flask:
     @login_required
     def dashboard():
         tracks = db.get_tracks_for_user(pool, current_user.id)
-        return render_template("dashboard.html", tracks=tracks)
+        return render_template(
+            "dashboard.html",
+            tracks=tracks,
+            downloads_enabled=download.downloads_enabled(),
+        )
 
     @app.route("/process", methods=["POST"])
     @login_required
@@ -95,13 +100,21 @@ def create_app() -> Flask:
         if db.track_exists_for_user(pool, current_user.id, video_id):
             return jsonify({"error": "This video has already been processed."}), 409
 
+        download_flag = request.form.get("download") in ("1", "true", "on", "yes")
+        if download_flag and not download.downloads_enabled():
+            return jsonify({"error": "Downloads are not configured on this server."}), 400
+        include_video = request.form.get("include_video", "both") == "both"
+
         # Insert pending row and kick off processing in a background thread
         db.insert_pending_track(pool, current_user.id, url, video_id)
         user_id = current_user.id
 
         def _run():
             try:
-                process_url(url, user_id, pool)
+                process_url(
+                    url, user_id, pool,
+                    download=download_flag, include_video=include_video,
+                )
             except Exception:
                 pass  # status already set to 'failed' by process_url
 

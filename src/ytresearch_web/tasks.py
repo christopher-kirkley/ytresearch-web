@@ -27,6 +27,8 @@ def process_url(
     pool,
     model: str = "claude-sonnet-4-6",
     comment_limit: int = 100,
+    download: bool = False,
+    include_video: bool = True,
 ) -> ProcessingResult | None:
     """Scrape, analyze, and store a YouTube URL.
 
@@ -42,11 +44,27 @@ def process_url(
         comments = fetch_comments(url, limit=comment_limit)
         analysis = analyze(metadata, comments, model=model)
 
+        audio_path = None
+        video_path = None
+        if download:
+            from . import download as dl
+
+            dirs = dl.get_download_dirs()
+            if dirs is None:
+                raise dl.DownloadError("Downloads are not configured.")
+            audio_dir, video_dir = dirs
+            paths = dl.archive_track(
+                url, metadata, analysis, audio_dir, video_dir,
+                include_video=include_video,
+            )
+            audio_path = paths["audio_path"]
+            video_path = paths["video_path"]
+
         result: ProcessingResult = {
             "video": metadata,
             "analysis": analysis,
-            "audio_path": None,
-            "video_path": None,
+            "audio_path": audio_path,
+            "video_path": video_path,
             "status": "success",
             "error": None,
         }
