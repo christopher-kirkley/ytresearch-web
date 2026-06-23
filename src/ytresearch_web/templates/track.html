@@ -39,7 +39,7 @@
 
     {% if track.summary %}
     <h3 style="margin-bottom: 0.5rem;">Full Summary</h3>
-    <p style="white-space: pre-wrap; color: #555;">{{ track.summary }}</p>
+    <div class="markdown" style="color: #555;">{{ track.summary | markdown }}</div>
     {% endif %}
 
     <p style="margin-top: 1.5rem; color: #999; font-size: 0.85rem;">

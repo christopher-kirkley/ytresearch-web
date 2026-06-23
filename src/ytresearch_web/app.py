@@ -69,6 +69,22 @@ def create_app() -> Flask:
     if admin_pass:
         db.seed_admin(pool, admin_user, admin_pass)
 
+    # Render Claude's markdown summaries to HTML in templates.
+    import markdown as _markdown
+    from markupsafe import Markup, escape
+
+    @app.template_filter("markdown")
+    def render_markdown(text):
+        if not text:
+            return ""
+        # Escape first so any raw HTML in the summary is shown, not executed;
+        # Markdown syntax (#, -, **) still renders.
+        html = _markdown.markdown(
+            str(escape(text)),
+            extensions=["extra", "sane_lists"],
+        )
+        return Markup(html)
+
     # CSRF protection
     csrf.init_app(app)
 
