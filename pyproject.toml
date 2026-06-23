@@ -28,4 +28,4 @@ build-backend = "hatchling.build"
 packages = ["src/ytresearch_web"]
 
 [tool.uv.sources]
-ytresearch = { path = "../ytresearch", editable = true }
+ytresearch = { git = "https://github.com/christopher-kirkley/ytresearch.git", branch = "master" }

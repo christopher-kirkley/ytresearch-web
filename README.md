@@ -62,10 +62,28 @@ Tables are created automatically on startup, and the admin user is seeded if
 ## Run
 
 ```bash
-uv run flask --app ytresearch_web.app run --port 5001
+make run            # or: uv run flask --app ytresearch_web.app run --port 5001
 ```
 
 Then open http://127.0.0.1:5001 and log in with the admin credentials from `.env`.
+
+### The `ytresearch` dependency
+
+`ytresearch` is pulled from GitHub (pinned in `uv.lock`), so `uv sync` works on
+any machine with no local checkout. To bump it after upstream changes:
+
+```bash
+uv lock --upgrade-package ytresearch
+```
+
+To develop `ytresearch` and `ytresearch-web` side-by-side, set `YTRESEARCH_SRC`
+to a local checkout (export it, or add it to `.env`). `make run` / `make test`
+then layer that checkout in as an editable install, overriding the GitHub
+version without touching `pyproject.toml` or `uv.lock`:
+
+```bash
+YTRESEARCH_SRC=/path/to/ytresearch make run
+```
 
 > Port 5000 is often taken (macOS AirPlay, and others) — use 5001. This is the
 > Flask dev server; use a production WSGI server (e.g. gunicorn) and a real
@@ -76,8 +94,11 @@ Then open http://127.0.0.1:5001 and log in with the admin credentials from `.env
 Python (database tests skip automatically when `TEST_DATABASE_URL` is unset):
 
 ```bash
-TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/ytresearch_test uv run pytest
+TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/ytresearch_test make test
+# (or: ... uv run pytest)
 ```
+
+`make test` honors `YTRESEARCH_SRC` the same way `make run` does.
 
 Frontend search/sort helpers (Node's built-in runner, no dependencies):
 
