@@ -7,18 +7,18 @@ requires-python = ">=3.10"
 dependencies = [
     "ytresearch",
     "flask",
-    "psycopg2-binary",
     "python-dotenv",
     "flask-login",
     "flask-wtf>=1.2.2",
     "flask-limiter>=4.1.1",
+    "waitress>=3",
 ]
 
 [dependency-groups]
 dev = ["pytest>=8"]
 
 [project.scripts]
-ytresearch-web = "ytresearch_web.app:create_app"
+ytresearch-web = "ytresearch_web.app:serve"
 
 [build-system]
 requires = ["hatchling"]

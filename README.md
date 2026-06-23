@@ -85,17 +85,80 @@ version without touching `pyproject.toml` or `uv.lock`:
 YTRESEARCH_SRC=/path/to/ytresearch make run
 ```
 
-> Port 5000 is often taken (macOS AirPlay, and others) — use 5001. This is the
-> Flask dev server; use a production WSGI server (e.g. gunicorn) and a real
-> rate-limit storage backend for deployment.
+> Port 5000 is often taken (macOS AirPlay, and others) — use 5001. `make run`
+> is the Flask dev server (auto-reload). For an always-on server use `make
+> serve` (waitress) or the launchd service below.
+
+## Run as a background service (macOS)
+
+Runs the app via waitress on every login, bound to `127.0.0.1:5001`, and
+restarts it if it crashes (a per-user launchd LaunchAgent):
+
+```bash
+uv sync                 # ensure .venv exists
+make install-service    # render plist, load + start it
+make service-status     # state = running, pid = …
+make service-logs       # tail the log
+make uninstall-service  # stop + remove
+```
+
+The plist is rendered from `deploy/ytresearch-web.plist.template` with this
+checkout's absolute paths and a `PATH` that includes the venv and Homebrew (so
+downloads find `yt-dlp`/`ffmpeg`). It loads config from `.env` via the working
+directory. The app stays Flask — to deploy on the web later, keep waitress
+bound to `127.0.0.1`, add a reverse proxy (nginx/Caddy) for TLS, set
+`ALLOWED_HOSTS` to your domain, and turn `SEARCH_API_TOKEN` back on.
+
+> Security: the app rejects requests whose `Host` header isn't localhost (a
+> DNS-rebinding guard). Set `ALLOWED_HOSTS=your.domain,…` to allow others.
+
+## Search API (for scripting / Automator)
+
+`GET /search` looks up a track by its audio/video **filename** and returns JSON.
+Unlike the dashboard, it is not gated by interactive login, so it works from
+scripts. Access is restricted to **localhost**. A token is optional: it works
+with no token; set `SEARCH_API_TOKEN` in `.env` to additionally require one
+(sent via `?token=` or the `X-API-Key` header).
+
+```bash
+# bare filename or full path both work
+curl 'http://127.0.0.1:5001/search?filename=Song.mp3'
+curl 'http://127.0.0.1:5001/search?filename=/Users/you/music-archive/audio/Song.mp3'
+# with a token configured:
+curl -H "X-API-Key: YOUR_TOKEN" 'http://127.0.0.1:5001/search?filename=Song.mp3'
+```
+
+Responses: `200` with the record as JSON, `404` if no match, `400` if
+`filename` is missing, `403` if not from localhost, `401` if a token is
+configured but missing/invalid.
+
+## Finder Quick Action (open a file's detail page)
+
+`scripts/ytresearch-lookup.sh` opens the **detail page** for an archive file
+selected in Finder. It looks the file up by its full path in the SQLite archive
+to get the track's `youtube_id`, then opens `/track/<id>` — works for both
+`.mp3` and `.mp4`, and the id is unique so there's never any filename ambiguity.
+
+Set it up:
+
+1. Automator → **New → Quick Action**.
+2. "Workflow receives current **files or folders** in **Finder**".
+3. Add **Run Shell Script**, set **Pass input: as arguments**.
+4. Paste the body of `scripts/ytresearch-lookup.sh`.
+
+It then appears in Finder's right-click **Quick Actions** for selected files.
+The detail page needs you logged into the app in your browser (you'll be sent
+through `/login` and on to the page if not).
+
+> Going through the id (`/track/<id>`) opens the real detail **page**; hitting
+> `/search` directly returns JSON instead.
 
 ## Tests
 
-Python (database tests skip automatically when `TEST_DATABASE_URL` is unset):
+No external database needed — tests run against a throwaway SQLite db:
 
 ```bash
-TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/ytresearch_test make test
-# (or: ... uv run pytest)
+make test           # or: uv run pytest
 ```
 
 `make test` honors `YTRESEARCH_SRC` the same way `make run` does.

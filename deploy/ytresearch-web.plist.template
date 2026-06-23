@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Rendered by `make install-service`; placeholders are filled with absolute
+     paths for this checkout. Runs as a per-user LaunchAgent: starts at login,
+     restarts on crash, serves via waitress on 127.0.0.1:5001. -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>__LABEL__</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__VENV_BIN__/ytresearch-web</string>
+    </array>
+
+    <!-- So load_dotenv() finds .env and relative paths resolve. -->
+    <key>WorkingDirectory</key>
+    <string>__WORKDIR__</string>
+
+    <!-- launchd has a minimal PATH; downloads shell out to yt-dlp/ffmpeg. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>__VENV_BIN__:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__LOG__</string>
+    <key>StandardErrorPath</key>
+    <string>__LOG__</string>
+</dict>
+</plist>

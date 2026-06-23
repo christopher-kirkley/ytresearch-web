@@ -212,3 +212,55 @@ def test_archive_track_skips_tags_when_no_analysis(mock_audio, mock_thumb, mock_
     mock_audio.return_value = tmp_path / "Song.mp3"
     download.archive_track("URL", _META, None, tmp_path, tmp_path, include_video=False)
     mock_tagger.write_tags.assert_not_called()
+
+
+# --- download_thumbnail: deterministic resolution (regression for data-loss bug) ---
+
+@patch("ytresearch_web.download.subprocess.run")
+def test_download_thumbnail_returns_path_matching_audio_stem(mock_run, tmp_path):
+    audio = tmp_path / "Song.mp3"
+    # An unrelated track's thumbnail already in the same archive dir.
+    (tmp_path / "OtherTrack.jpg").write_text("not mine")
+    # yt-dlp writes the thumbnail for THIS track using the same %(title)s stem.
+    (tmp_path / "Song.jpg").write_text("mine")
+    mock_run.return_value = _ok("")
+
+    thumb = download.download_thumbnail("URL", audio)
+    # Must pick the file matching the audio stem, never the unrelated .jpg.
+    assert thumb == tmp_path / "Song.jpg"
+
+
+@patch("ytresearch_web.download.subprocess.run")
+def test_download_thumbnail_none_when_expected_file_absent(mock_run, tmp_path):
+    audio = tmp_path / "Song.mp3"
+    (tmp_path / "OtherTrack.jpg").write_text("not mine")  # present but unrelated
+    mock_run.return_value = _ok("")
+    # No Song.jpg was produced -> return None, do NOT return the unrelated jpg.
+    assert download.download_thumbnail("URL", audio) is None
+
+
+@patch("ytresearch_web.download.subprocess.run")
+def test_download_thumbnail_tolerates_yt_dlp_failure(mock_run, tmp_path):
+    audio = tmp_path / "Song.mp3"
+    (tmp_path / "Song.jpg").write_text("mine")
+    mock_run.return_value = _fail()
+    assert download.download_thumbnail("URL", audio) is None
+
+
+# --- timeout handling ---
+
+@patch("ytresearch_web.download.subprocess.run")
+def test_yt_dlp_timeout_raises_download_error(mock_run, tmp_path):
+    import subprocess as _sp
+    mock_run.side_effect = _sp.TimeoutExpired(cmd="yt-dlp", timeout=1)
+    with pytest.raises(DownloadError):
+        download.download_audio("URL", tmp_path)
+
+
+@patch("ytresearch_web.download.subprocess.run")
+def test_download_thumbnail_tolerates_timeout(mock_run, tmp_path):
+    import subprocess as _sp
+    audio = tmp_path / "Song.mp3"
+    (tmp_path / "Song.jpg").write_text("mine")
+    mock_run.side_effect = _sp.TimeoutExpired(cmd="yt-dlp", timeout=1)
+    assert download.download_thumbnail("URL", audio) is None

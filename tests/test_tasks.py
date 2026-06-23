@@ -54,9 +54,13 @@ def test_process_url(mock_extract, mock_meta, mock_comments, mock_analyze, pool)
     # Track should now exist
     assert db.track_exists_for_user(pool, user_id, "mock123")
 
-    # Processing again should return None (duplicate)
+    # process_url itself has no duplicate guard (that lives in the /process
+    # route via track_exists_for_user); calling it again reprocesses in place
+    # and must not create a second row.
     result2 = process_url("https://youtube.com/watch?v=mock123", user_id, pool)
-    assert result2 is None
+    assert result2 is not None
+    assert result2["status"] == "success"
+    assert len(db.get_tracks_for_user(pool, user_id)) == 1
 
 
 @patch("ytresearch_web.download.archive_track",

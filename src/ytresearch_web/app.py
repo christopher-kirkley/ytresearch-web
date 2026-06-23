@@ -1,5 +1,6 @@
 """Flask application factory."""
 
+import hmac
 import os
 import re
 import threading
@@ -15,6 +16,26 @@ from .tasks import process_url
 
 # Regex for validating youtube_id parameters (11 alphanumeric + hyphen/underscore)
 _YOUTUBE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,20}$")
+
+# Hostnames allowed when ALLOWED_HOSTS is not set (local use).
+_LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "::1", "[::1]"}
+
+
+def _host_allowed(host: str) -> bool:
+    """Guard against DNS-rebinding: only serve requests for expected hosts.
+
+    If ALLOWED_HOSTS is set (comma-separated, e.g. for web deployment), the
+    request's Host header must match one exactly. Otherwise only localhost
+    hostnames are allowed (the port is ignored).
+    """
+    if not host:
+        return False
+    configured = os.environ.get("ALLOWED_HOSTS")
+    if configured:
+        allowed = {h.strip() for h in configured.split(",") if h.strip()}
+        return host in allowed
+    hostname = host.rsplit(":", 1)[0] if not host.startswith("[") else host.split("]")[0] + "]"
+    return hostname in _LOCAL_HOSTNAMES
 
 
 def create_app() -> Flask:
@@ -58,6 +79,11 @@ def create_app() -> Flask:
     login_manager.init_app(app)
     app.register_blueprint(auth_bp)
 
+    @app.before_request
+    def reject_unexpected_hosts():
+        if not _host_allowed(request.host):
+            return jsonify({"error": "Forbidden"}), 403
+
     @app.after_request
     def set_security_headers(response):
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -85,7 +111,7 @@ def create_app() -> Flask:
     @login_required
     def process():
         from .tasks import clean_youtube_url
-        from ytresearch.youtube import extract_video_id
+        from ytresearch.metadata.scraper import extract_video_id
 
         url = request.form.get("url", "").strip()
         if not url:
@@ -147,4 +173,48 @@ def create_app() -> Flask:
             return redirect(url_for("dashboard"))
         return render_template("track.html", track=track)
 
+    @app.route("/search")
+    @limiter.limit("60/minute")
+    def search():
+        """Look up a track by audio/video filename. JSON, for scripting.
+
+        Intended for local scripting (e.g. macOS Automator), so it is NOT gated
+        by interactive login. Access is restricted to localhost. A token is
+        optional: if SEARCH_API_TOKEN is set, it must be supplied via ?token= or
+        the X-API-Key header; if unset, localhost requests are allowed freely.
+        """
+        if request.remote_addr not in ("127.0.0.1", "::1"):
+            return jsonify({"error": "Forbidden"}), 403
+
+        configured = os.environ.get("SEARCH_API_TOKEN")
+        if configured:
+            provided = request.args.get("token") or request.headers.get("X-API-Key", "")
+            if not hmac.compare_digest(provided, configured):
+                return jsonify({"error": "Unauthorized"}), 401
+
+        filename = request.args.get("filename", "").strip()
+        if not filename:
+            return jsonify({"error": "Missing 'filename' parameter"}), 400
+
+        record = db.get_track_by_filename(pool, filename)
+        if record is None:
+            return jsonify({"error": "Not found", "filename": filename}), 404
+        return jsonify(record)
+
     return app
+
+
+def serve():
+    """Console-script entry point: serve the app with waitress.
+
+    Host/port come from HOST/PORT env vars (defaults 127.0.0.1:5001). Binding to
+    127.0.0.1 keeps it local-only; for a web deployment, put a reverse proxy in
+    front and set ALLOWED_HOSTS.
+    """
+    from waitress import serve as waitress_serve
+
+    load_dotenv()
+    host = os.environ.get("HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", "5001"))
+    print(f"ytresearch-web serving on http://{host}:{port}", flush=True)
+    waitress_serve(create_app(), host=host, port=port)

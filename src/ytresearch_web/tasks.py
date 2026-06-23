@@ -2,8 +2,8 @@
 
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
-from ytresearch.youtube import extract_video_id, fetch_metadata, fetch_comments
-from ytresearch.analyzer import analyze
+from ytresearch.metadata.scraper import extract_video_id, fetch_metadata, fetch_comments
+from ytresearch.metadata.analyzer import analyze
 from ytresearch.types import ProcessingResult
 
 from . import db
