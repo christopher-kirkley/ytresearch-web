@@ -1243,26 +1243,15 @@ wheels = [
 [[package]]
 name = "ytresearch"
 version = "0.1.0"
-source = { editable = "../ytresearch" }
+source = { git = "https://github.com/christopher-kirkley/ytresearch.git?branch=master#6c2e2e530a76e42c98b15c1c112c75d2f7807fd3" }
 dependencies = [
     { name = "anthropic" },
     { name = "mutagen" },
     { name = "python-dotenv" },
+    { name = "requests" },
     { name = "youtube-comment-downloader" },
     { name = "yt-dlp" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "anthropic" },
-    { name = "mutagen" },
-    { name = "python-dotenv" },
-    { name = "youtube-comment-downloader" },
-    { name = "yt-dlp" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pytest" }]
 
 [[package]]
 name = "ytresearch-web"
@@ -1291,7 +1280,7 @@ requires-dist = [
     { name = "flask-wtf", specifier = ">=1.2.2" },
     { name = "psycopg2-binary" },
     { name = "python-dotenv" },
-    { name = "ytresearch", editable = "../ytresearch" },
+    { name = "ytresearch", git = "https://github.com/christopher-kirkley/ytresearch.git?branch=master" },
 ]
 
 [package.metadata.requires-dev]
