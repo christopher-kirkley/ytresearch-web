@@ -56,6 +56,7 @@ install-service:
 	    -e 's|__LOG__|$(LOG)|g' \
 	    deploy/ytresearch-web.plist.template > "$(PLIST)"
 	-launchctl bootout gui/$(UID)/$(LABEL) 2>/dev/null
+	@sleep 1  # bootout is async; let it finish before bootstrap
 	launchctl bootstrap gui/$(UID) "$(PLIST)"
 	launchctl kickstart -k gui/$(UID)/$(LABEL)
 	@echo "Installed. Serving on http://127.0.0.1:$(PORT) — logs: $(LOG)"
